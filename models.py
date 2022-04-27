@@ -2,25 +2,24 @@ import torch
 import torch.nn as nn
 
 
-def idx2onehot(idx, n):
-    assert torch.max(idx).item() < n
-
+def label_onehot(idx, n):
     if idx.dim() == 1:
         idx = idx.unsqueeze(1)
     onehot = torch.zeros(idx.size(0), n).to(idx.device)
     onehot.scatter_(1, idx, 1)
-
     return onehot
+
 
 class ConditionalVaeFFN(nn.Module):
     """Conditional VAE for MNIST."""
 
-    def __init__(self, inp_size: int, hidden_size: int, latent_size: int, num_labels: int):
+    def __init__(self, inp_size: int, hidden_size: int, latent_size: int, condition_size: int):
         super().__init__()
 
+        self.latent_size = latent_size
         # Encoder
-        self.encoder = Encoder(inp_size + num_labels, hidden_size, latent_size)
-        self.decoder = Decoder(inp_size, hidden_size, latent_size + num_labels)
+        self.encoder = Encoder(inp_size + condition_size, hidden_size, latent_size)
+        self.decoder = Decoder(inp_size, hidden_size, latent_size + condition_size)
 
     def re_parameterize(self, mu, var):
         std = torch.exp(0.5 * var)
@@ -35,6 +34,11 @@ class ConditionalVaeFFN(nn.Module):
 
         return recon_x, means, var, z
 
+    def generate(self, conditions):
+        z = torch.randn([conditions.shape[0], self.latent_size]).to(conditions.device)  # Batch-Size x latent-size
+        x = self.decoder(z, conditions)
+        return x
+
 
 class Encoder(nn.Module):
 
@@ -44,6 +48,12 @@ class Encoder(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(inp_size, hidden_size),
             nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.3),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU()
         )
@@ -70,6 +80,13 @@ class Decoder(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.3),
             nn.Linear(hidden_size, inp_size),
             nn.Sigmoid()
         )
