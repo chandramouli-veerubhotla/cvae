@@ -34,8 +34,7 @@ class ConditionalVaeFFN(nn.Module):
 
         return recon_x, means, var, z
 
-    def generate(self, conditions):
-        z = torch.randn([conditions.shape[0], self.latent_size]).to(conditions.device)  # Batch-Size x latent-size
+    def generate(self, z, conditions):
         x = self.decoder(z, conditions)
         return x
 
@@ -48,9 +47,6 @@ class Encoder(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(inp_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            nn.Dropout(0.2),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
             nn.Dropout(0.3),
@@ -76,17 +72,11 @@ class Decoder(nn.Module):
         super().__init__()
 
         self.net = nn.Sequential(
-            nn.Linear(latent_size, hidden_size),
+            nn.Linear(latent_size, hidden_size), #  Input: Batch-size x (128 + 784), Output: Batchsize x 256
             nn.ReLU(),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            nn.Dropout(0.3),
             nn.Linear(hidden_size, inp_size),
             nn.Sigmoid()
         )

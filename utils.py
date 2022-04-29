@@ -12,16 +12,14 @@ def label_onehot(idx, n):
 
 
 def save_output(images, conditions, save_to: str):
-    plt.figure(figsize=(5, 10))
-
+    total_images = images.size(0)
+    rows = total_images // 10
     # iterate over each image and add each image as subplot to main figure
     for idx, (image, condition) in enumerate(zip(images, conditions)):
-        if idx > 9:
-            break
-        plt.subplot(5, 2, idx+1)
+        plt.subplot(rows+1, 10, idx+1)
 
         # Add condition information to reference
-        plt.text(0, 0, "label={:d}".format(condition.item()), color='black', backgroundcolor='white', fontsize=8)
+        plt.text(0, 0, "label={:d}".format(condition), color='black', backgroundcolor='white', fontsize=8)
         plt.imshow(image.view(28, 28).cpu().data.numpy())
         plt.axis('off')
 
@@ -33,4 +31,29 @@ def save_output(images, conditions, save_to: str):
     plt.close('all')
 
 
-# Refer this https://keras.io/examples/generative/vae/ to generate model images
+def plot_loss(data, save_to: str):
+    train_loss, val_loss = [], []
+
+    best = data['best']
+    del data['best']
+
+    for epoch, losses in data.items():
+        train_loss.append(losses['train_loss'])
+        val_loss.append(losses['validation_loss'])
+
+    plt.figure(figsize=(5, 5))
+    plt.plot(train_loss)
+    plt.plot(val_loss)
+    plt.vlines(x = int(best), color = 'b', ymin=min(train_loss[best], val_loss[best]) - 0.1, ymax=max(train_loss[best], val_loss[best]) + 0.1, label = 'best model saved')
+
+    plt.title('Train vs Validation Loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'validation'], loc='upper left')
+
+    # Save generated image to desired location
+    plt.savefig(save_to, dpi=300)
+
+    # clean and close all matplotlib stuff
+    plt.clf()
+    plt.close('all')
